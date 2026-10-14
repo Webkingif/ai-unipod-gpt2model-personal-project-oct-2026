@@ -4,18 +4,23 @@ from tokenizers import Tokenizer
 from model import GPT
 
 def generate_text(prompt, max_new_tokens=50, temperature=0.6, top_k=50):
-    # --- 1. Config & Device Setup ---
-    MAX_SEQ_LEN = 128
-    D_MODEL = 256
-    N_LAYER = 4
-    N_HEAD = 4
+    # --- 1. Config & Device Setup (Updated to match train.py) ---
+    MAX_SEQ_LEN = 256
+    D_MODEL = 384
+    N_LAYER = 6
+    N_HEAD = 6
     
-    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
-    print(f"🚀 Using device: {device}")
+    # Target Intel Arc GPU via PyTorch XPU backend
+    if hasattr(torch, 'xpu') and torch.xpu.is_available():
+        device = torch.device('xpu:1' if torch.xpu.device_count() > 1 else 'xpu:0')
+        print(f"🚀 Using Intel GPU: {torch.xpu.get_device_name(device)}")
+    else:
+        device = torch.device('cpu')
+        print("⚠️ Intel XPU backend not found, falling back to CPU.")
 
     # --- 2. Load Tokenizer & Model Checkpoint ---
     tokenizer_path = "custom_gpt2_tokenizer.json"
-    model_path = "checkpoints/gpt2_model.pt"
+    model_path = "checkpoints/gpt2_model.pt"  # Can also point to an intermediate checkpoint like checkpoints/gpt2_model_iter_20000.pt
     
     tokenizer = Tokenizer.from_file(tokenizer_path)
     vocab_size = tokenizer.get_vocab_size()
@@ -52,7 +57,7 @@ def generate_text(prompt, max_new_tokens=50, temperature=0.6, top_k=50):
             # Focus on the last token's predictions and scale by temperature
             logits = logits[:, -1, :] / temperature
             
-            # Optional: Top-K filtering to prevent weird random tokens
+            # Top-K filtering to prevent weird random tokens
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = float('-inf')
@@ -67,7 +72,6 @@ def generate_text(prompt, max_new_tokens=50, temperature=0.6, top_k=50):
             input_ids = torch.cat((input_ids, next_token), dim=1)
 
             # Stop generating early if model outputs the <|endoftext|> token
-            # (Assuming <|endoftext|> was added during tokenizer training)
             decoded_token = tokenizer.decode(next_token[0].tolist())
             if "<|endoftext|>" in decoded_token:
                 break
@@ -81,6 +85,6 @@ def generate_text(prompt, max_new_tokens=50, temperature=0.6, top_k=50):
     return generated_text
 
 if __name__ == "__main__":
-    # Test generation with a sample prompt from your domain
-    sample_prompt = "AI UniPod UNILAG is an artificial intelligence"
+    # Test generation with a sample prompt matching your domain
+    sample_prompt = "Artificial intelligence and higher education in Nigeria"
     generate_text(sample_prompt, max_new_tokens=60, temperature=0.7)
