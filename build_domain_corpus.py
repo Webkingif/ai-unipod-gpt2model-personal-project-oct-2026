@@ -150,9 +150,6 @@ if __name__ == "__main__":
     "Higher education in Nigeria",
     "Tech ecosystem in Nigeria",
     "Economy of Lagos"
-        
-        
-        
     ]
 
     build_corpus(target_topics)
