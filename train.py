@@ -6,18 +6,20 @@ from model import GPT
 
 def train():
     # --- 1. Hyperparameters & Config ---
-    BATCH_SIZE = 16        # Balanced for your 6GB Arc A380 VRAM
+    BATCH_SIZE = 16
     MAX_SEQ_LEN = 256
-    D_MODEL = 384          # Enhanced capacity for the 7.1MB specialized domain corpus
-    N_LAYER = 6            # Expanded depth from 4 to 6 blocks
-    N_HEAD = 6             # Clean split: 384 / 6 = 64 head size
+    D_MODEL = 384
+    N_LAYER = 6
+    N_HEAD = 6
     DROPOUT = 0.1
     LEARNING_RATE = 3e-4
-    MAX_ITERS = 40000      # Scaled up to thoroughly process your ~1.8M token dataset
+    MAX_ITERS = 65000      
     
-    # --- 2. Hardware Device Selection (Targeting Intel Arc A380) ---
+    # Set to your last saved checkpoint file (or set to None to start fresh)
+    RESUME_CHECKPOINT = "checkpoints/gpt2_model_iter_46000.pt"
+
+    # --- 2. Hardware Device Selection ---
     if hasattr(torch, 'xpu') and torch.xpu.is_available():
-        # gpu0 is UHD 770 (integrated), gpu1 is Intel Arc A380 (discrete)
         device = torch.device('xpu:1' if torch.xpu.device_count() > 1 else 'xpu:0')
         print(f"🚀 Using Intel GPU: {torch.xpu.get_device_name(device)}")
     else:
@@ -43,19 +45,31 @@ def train():
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 
-    # Ensure checkpoint directory exists
+    # --- 5. Load Checkpoint if Resuming ---
+    iter_count = 0
+    if RESUME_CHECKPOINT and os.path.exists(RESUME_CHECKPOINT):
+        print(f"📂 Loading checkpoint to resume: {RESUME_CHECKPOINT}")
+        model.load_state_dict(torch.load(RESUME_CHECKPOINT, map_location=device))
+        
+        # Extract the iteration number automatically from the filename string (e.g., 'iter_6000')
+        try:
+            iter_count = int(RESUME_CHECKPOINT.split('_iter_')[1].split('.pt')[0])
+            print(f"🔄 Successfully resumed! Starting training loop from iteration {iter_count}...")
+        except Exception:
+            iter_count = 0 # Fallback if naming convention changes
+    else:
+        print("🏁 Starting a brand new training run from iteration 0...")
+
     os.makedirs("checkpoints", exist_ok=True)
 
-    # --- 5. Training Loop ---
+    # --- 6. Training Loop ---
     model.train()
-    print("🏁 Starting training loop on your Intel Arc setup...")
     
-    iter_count = 0
     while iter_count < MAX_ITERS:
         for x, y in dataloader:
             x, y = x.to(device), y.to(device)
 
-            # Forward pass: compute logits and loss
+            # Forward pass
             logits, loss = model(x, y)
 
             # Backward pass & weight update
@@ -78,7 +92,7 @@ def train():
             if iter_count >= MAX_ITERS:
                 break
 
-    # --- 6. Save Final Model Checkpoint ---
+    # --- 7. Save Final Model Checkpoint ---
     final_path = "checkpoints/gpt2_model.pt"
     torch.save(model.state_dict(), final_path)
     print(f"✅ Training complete! Final model saved to '{final_path}'.")

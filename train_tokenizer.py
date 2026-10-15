@@ -11,7 +11,7 @@ def train_custom_tokenizer():
     # Note: If your dataset is small (e.g., Tiny Shakespeare), keep vocab_size around 5000.
     # If your dataset is huge, you can scale this up to 16000, 32000, or 50257.
     trainer = trainers.BpeTrainer(
-        vocab_size=5000,
+        vocab_size=16384,
         special_tokens=["<|endoftext|>"],
         initial_alphabet=pre_tokenizers.ByteLevel.alphabet()
     )

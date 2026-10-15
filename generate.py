@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from tokenizers import Tokenizer
 from model import GPT
 
-def generate_text(prompt, max_new_tokens=50, temperature=0.6, top_k=50):
+def generate_text(prompt, max_new_tokens=50, temperature=0.3, top_k=50):
     # --- 1. Config & Device Setup (Updated to match train.py) ---
     MAX_SEQ_LEN = 256
     D_MODEL = 384
@@ -86,5 +86,5 @@ def generate_text(prompt, max_new_tokens=50, temperature=0.6, top_k=50):
 
 if __name__ == "__main__":
     # Test generation with a sample prompt matching your domain
-    sample_prompt = "Artificial intelligence and higher education in Nigeria"
-    generate_text(sample_prompt, max_new_tokens=60, temperature=0.7)
+    sample_prompt = "UNILAG is"
+    generate_text(sample_prompt, max_new_tokens=60, temperature=0.3)
